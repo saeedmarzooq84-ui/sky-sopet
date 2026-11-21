@@ -1,0 +1,398 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>سوبر سكاي</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#160607;color:white;font-family:Arial}
+header{background:#8b101b;padding:20px;text-align:center;border-bottom:2px solid #e33}
+header h1{margin:0;font-size:27px}
+header p{color:#ffd5d5}
+nav{display:flex;justify-content:space-around;gap:5px;background:#26090d;padding:12px;position:sticky;top:0;z-index:5}
+button{background:#a71927;color:white;border:0;padding:11px 15px;border-radius:9px;cursor:pointer;font-weight:bold}
+button:hover{background:#d32b3c}
+button:disabled{opacity:.5}
+main{padding:15px;max-width:900px;margin:auto}
+.page{display:none}
+.page.active{display:block}
+.panel,.product,.order{background:#310d13;border:1px solid #76202b;border-radius:13px;padding:15px;margin:12px 0}
+input,textarea,select{width:100%;padding:12px;margin:7px 0;background:#20090d;color:white;border:1px solid #8b303c;border-radius:8px}
+h2{color:#ff737d}
+.product{display:flex;gap:12px;align-items:center}
+.product img{width:85px;height:85px;object-fit:cover;border-radius:9px;background:#20090d}
+.product-info{flex:1}
+.price{color:#ff858c;font-weight:bold}
+.small{font-size:12px;color:#d9aeb2}
+.danger{background:#65101a}
+.green{background:#236c43}
+footer{text-align:center;color:#b98b90;padding:25px}
+#message{background:#45121a;padding:10px;border-radius:8px;display:none}
+</style>
+</head>
+<body>
+
+<header>
+<h1>🔴 سوبر سكاي</h1>
+<p>مرحباً بكم في متجر سوبر سكاي</p>
+</header>
+
+<nav>
+<button onclick="showPage('home')">الرئيسية</button>
+<button onclick="showPage('shop')">المتجر</button>
+<button onclick="showPage('cart')">🛒 السلة</button>
+<button onclick="showPage('account')">حسابي</button>
+<button onclick="showPage('admin')">الإدارة</button>
+</nav>
+
+<main>
+
+<div id="message"></div>
+
+<section id="home" class="page active">
+<div class="panel" style="text-align:center;padding:35px 15px">
+<h2>أهلاً بكم في سوبر سكاي 🔴</h2>
+<p>تسوّقوا منتجاتكم المفضلة بسهولة</p>
+<button onclick="showPage('shop')">تسوق الآن</button>
+</div>
+<div class="panel">
+<h2>عن المتجر</h2>
+<p>سوبر سكاي | متجر التسوق الإلكتروني</p>
+</div>
+</section>
+
+<section id="shop" class="page">
+<h2>🛍️ المنتجات</h2>
+<div id="products"></div>
+</section>
+
+<section id="cart" class="page">
+<h2>🛒 سلة المشتريات</h2>
+<div id="cartItems"></div>
+<h3 id="total">الإجمالي: 0 درهم</h3>
+<button onclick="checkout()">تأكيد الطلب</button>
+</section>
+
+<section id="account" class="page">
+<h2>👤 حسابي</h2>
+<div class="panel" id="accountBox"></div>
+</section>
+
+<section id="admin" class="page">
+<h2>🔐 لوحة الإدارة</h2>
+<div id="adminLogin" class="panel">
+<p>الدخول للإدارة</p>
+<input id="adminPassword" type="password" placeholder="كلمة مرور الإدارة">
+<button onclick="adminSignIn()">دخول</button>
+<p class="small">كلمة المرور الأولية: 2468</p>
+</div>
+
+<div id="adminPanel" style="display:none">
+<div class="panel">
+<h2>إضافة منتج</h2>
+<input id="newName" placeholder="اسم المنتج">
+<input id="newPrice" type="number" placeholder="السعر بالدرهم">
+<input id="newImage" placeholder="رابط صورة المنتج (اختياري)">
+<textarea id="newDescription" placeholder="وصف المنتج"></textarea>
+<button onclick="addProduct()">إضافة المنتج</button>
+</div>
+
+<div class="panel">
+<h2>إدارة المنتجات</h2>
+<div id="manageProducts"></div>
+</div>
+
+<div class="panel">
+<h2>📦 الطلبات</h2>
+<div id="orders"></div>
+</div>
+
+<div class="panel">
+<h2>إعدادات الإدارة</h2>
+<input id="newAdminPassword" type="password" placeholder="كلمة مرور جديدة">
+<button onclick="changeAdminPassword()">تغيير كلمة المرور</button>
+</div>
+
+<button class="danger" onclick="adminSignOut()">تسجيل خروج الإدارة</button>
+</div>
+</section>
+
+</main>
+
+<footer>© سوبر سكاي 2026</footer>
+
+<script>
+const getData=(key,defaultValue)=>{
+ try{return JSON.parse(localStorage.getItem(key)) ?? defaultValue}
+ catch{return defaultValue}
+};
+
+let products=getData("sky_products",[]);
+let cart=getData("sky_cart",[]);
+let orders=getData("sky_orders",[]);
+let account=getData("sky_account",null);
+let adminPassword=localStorage.getItem("sky_admin_password")||"2468";
+let adminLogged=false;
+
+function save(){
+localStorage.setItem("sky_products",JSON.stringify(products));
+localStorage.setItem("sky_cart",JSON.stringify(cart));
+localStorage.setItem("sky_orders",JSON.stringify(orders));
+localStorage.setItem("sky_account",JSON.stringify(account));
+}
+
+function notify(msg){
+let el=document.getElementById("message");
+el.textContent=msg;
+el.style.display="block";
+setTimeout(()=>el.style.display="none",2500);
+}
+
+function showPage(id){
+document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+renderAll();
+}
+
+function renderProducts(){
+let box=document.getElementById("products");
+if(!products.length){
+box.innerHTML='<div class="panel">لا توجد منتجات حالياً.</div>';
+return;
+}
+box.innerHTML=products.map(p=>`
+<div class="product">
+<img src="${escapeHTML(p.image||'')}" onerror="this.style.display='none'">
+<div class="product-info">
+<strong>${escapeHTML(p.name)}</strong>
+<p class="small">${escapeHTML(p.description||'')}</p>
+<p class="price">${p.price} درهم</p>
+<p class="small">${p.available?'متوفر':'نفد المنتج'}</p>
+<button ${!p.available?'disabled':''} onclick="addToCart(${p.id})">إضافة للسلة</button>
+</div>
+</div>`).join("");
+}
+
+function escapeHTML(s){
+return String(s).replace(/[&<>"']/g,c=>({
+'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+}[c]));
+}
+
+function addToCart(id){
+let p=products.find(x=>x.id===id);
+if(!p||!p.available)return;
+let item=cart.find(x=>x.id===id);
+if(item)item.qty++;
+else cart.push({id:p.id,qty:1});
+save();
+renderAll();
+notify("تمت إضافة المنتج للسلة");
+}
+
+function removeCart(id){
+cart=cart.filter(x=>x.id!==id);
+save();renderAll();
+}
+
+function renderCart(){
+let box=document.getElementById("cartItems");
+let total=0;
+if(!cart.length){
+box.innerHTML='<div class="panel">السلة فارغة.</div>';
+document.getElementById("total").textContent="الإجمالي: 0 درهم";
+return;
+}
+box.innerHTML=cart.map(item=>{
+let p=products.find(x=>x.id===item.id);
+if(!p)return "";
+total+=p.price*item.qty;
+return `<div class="panel">
+<strong>${escapeHTML(p.name)}</strong>
+<p>${item.qty} × ${p.price} درهم</p>
+<button class="danger" onclick="removeCart(${p.id})">حذف</button>
+</div>`;
+}).join("");
+document.getElementById("total").textContent="الإجمالي: "+total+" درهم";
+}
+
+function checkout(){
+if(!cart.length)return notify("السلة فارغة");
+if(!account){
+showPage("account");
+return notify("سجل دخولك أولاً");
+}
+let total=0;
+let items=[];
+for(let item of cart){
+let p=products.find(x=>x.id===item.id);
+if(!p||!p.available)return notify("أحد المنتجات غير متوفر");
+total+=p.price*item.qty;
+items.push({name:p.name,qty:item.qty,price:p.price});
+}
+let address=prompt("اكتب عنوان التوصيل:");
+if(!address||!address.trim())return;
+let phone=prompt("اكتب رقم الهاتف:");
+if(!phone||!phone.trim())return;
+orders.push({
+id:Date.now(),
+customer:account.name,
+phone:phone,
+address:address,
+items:items,
+total:total,
+status:"طلب جديد",
+date:new Date().toLocaleString("ar-AE")
+});
+cart=[];
+save();renderAll();
+showPage("home");
+notify("تم إرسال طلبك بنجاح");
+}
+
+function renderAccount(){
+let box=document.getElementById("accountBox");
+if(account){
+box.innerHTML=`
+<h3>مرحباً ${escapeHTML(account.name)}</h3>
+<p>حسابك محفوظ على هذا الجهاز.</p>
+<button class="danger" onclick="logout()">تسجيل الخروج</button>`;
+}else{
+box.innerHTML=`
+<h3>تسجيل الدخول / إنشاء حساب</h3>
+<input id="customerName" placeholder="الاسم">
+<input id="customerPhone" placeholder="رقم الهاتف">
+<button onclick="login()">دخول وحفظ الحساب</button>`;
+}
+}
+
+function login(){
+let name=document.getElementById("customerName").value.trim();
+let phone=document.getElementById("customerPhone").value.trim();
+if(!name||!phone)return notify("أدخل الاسم ورقم الهاتف");
+account={name,phone};
+save();renderAll();notify("تم تسجيل الدخول");
+}
+
+function logout(){
+account=null;save();renderAll();notify("تم تسجيل الخروج");
+}
+
+function adminSignIn(){
+if(document.getElementById("adminPassword").value===adminPassword){
+adminLogged=true;
+document.getElementById("adminLogin").style.display="none";
+document.getElementById("adminPanel").style.display="block";
+renderAll();
+}else notify("كلمة المرور غير صحيحة");
+}
+
+function adminSignOut(){
+adminLogged=false;
+document.getElementById("adminLogin").style.display="block";
+document.getElementById("adminPanel").style.display="none";
+document.getElementById("adminPassword").value="";
+}
+
+function addProduct(){
+let name=document.getElementById("newName").value.trim();
+let price=Number(document.getElementById("newPrice").value);
+let image=document.getElementById("newImage").value.trim();
+let description=document.getElementById("newDescription").value.trim();
+if(!name||!Number.isFinite(price)||price<=0)return notify("أدخل اسم وسعر صحيح");
+products.push({
+id:Date.now(),
+name,price,image,description,available:true
+});
+save();
+["newName","newPrice","newImage","newDescription"].forEach(id=>document.getElementById(id).value="");
+renderAll();notify("تمت إضافة المنتج");
+}
+
+function deleteProduct(id){
+if(!confirm("هل تريد حذف المنتج؟"))return;
+products=products.filter(p=>p.id!==id);
+cart=cart.filter(p=>p.id!==id);
+save();renderAll();notify("تم حذف المنتج");
+}
+
+function toggleProduct(id){
+let p=products.find(x=>x.id===id);
+if(!p)return;
+p.available=!p.available;
+save();renderAll();
+}
+
+function renderManage(){
+if(!adminLogged)return;
+let box=document.getElementById("manageProducts");
+box.innerHTML=products.length?products.map(p=>`
+<div class="panel">
+<strong>${escapeHTML(p.name)}</strong>
+<p>${p.price} درهم</p>
+<p>${p.available?'متوفر':'نفد'}</p>
+<button onclick="toggleProduct(${p.id})">تغيير التوفر</button>
+<button class="danger" onclick="deleteProduct(${p.id})">حذف</button>
+</div>`).join(""):'لا توجد منتجات.';
+}
+
+function renderOrders(){
+if(!adminLogged)return;
+let box=document.getElementById("orders");
+box.innerHTML=orders.length?orders.map(o=>`
+<div class="order">
+<h3>طلب رقم ${o.id}</h3>
+<p>العميل: ${escapeHTML(o.customer)}</p>
+<p>الهاتف: ${escapeHTML(o.phone)}</p>
+<p>العنوان: ${escapeHTML(o.address)}</p>
+<p>التاريخ: ${escapeHTML(o.date)}</p>
+<p>المنتجات:</p>
+${o.items.map(i=>`<p>${escapeHTML(i.name)} × ${i.qty} — ${i.price} درهم</p>`).join("")}
+<strong>الإجمالي: ${o.total} درهم</strong>
+<p>الحالة: ${escapeHTML(o.status)}</p>
+<select onchange="changeOrderStatus(${o.id},this.value)">
+<option ${o.status==="طلب جديد"?"selected":""}>طلب جديد</option>
+<option ${o.status==="قيد التجهيز"?"selected":""}>قيد التجهيز</option>
+<option ${o.status==="تم التوصيل"?"selected":""}>تم التوصيل</option>
+<option ${o.status==="ملغي"?"selected":""}>ملغي</option>
+</select>
+<button class="danger" onclick="deleteOrder(${o.id})">حذف الطلب</button>
+</div>`).join(""):'لا توجد طلبات.';
+}
+
+function changeOrderStatus(id,status){
+let o=orders.find(x=>x.id===id);
+if(o){o.status=status;save();renderOrders();}
+}
+
+function deleteOrder(id){
+if(!confirm("حذف الطلب؟"))return;
+orders=orders.filter(o=>o.id!==id);
+save();renderOrders();
+}
+
+function changeAdminPassword(){
+let p=document.getElementById("newAdminPassword").value;
+if(p.length<4)return notify("كلمة المرور قصيرة");
+adminPassword=p;
+localStorage.setItem("sky_admin_password",p);
+document.getElementById("newAdminPassword").value="";
+notify("تم تغيير كلمة المرور");
+}
+
+function renderAll(){
+renderProducts();
+renderCart();
+renderAccount();
+if(adminLogged){
+renderManage();
+renderOrders();
+}
+}
+
+renderAll();
+</script>
+</body>
+</html>
